@@ -21,21 +21,36 @@ def macd(series: pd.Series, fast=12, slow=26, signal=9):
     return macd_line, signal_line, hist
 
 def build_feature_frame(df: pd.DataFrame) -> pd.DataFrame:
-    close = df['Close']
-    open_ = df['Open']
-    high = df['High']
-    low = df['Low']
-    vol = df.get('Volume', pd.Series(index=df.index, dtype=float)).fillna(0)
+    """Create the feature matrix used for training/prediction.
+
+    The previous implementation attempted to drop rows with missing values by
+    calling ``feats.dropna()`` but forgot to either assign the result back or
+    request an in-place modification.  As a consequence the returned dataframe
+    still contained ``NaN`` rows, which later caused the supervised dataset
+    generator to emit windows filled with NaNs.  That, in turn, leads to scaler
+    statistics of ``nan`` and breaks model training/prediction.
+
+    We now work on a local copy of the original dataframe, build the technical
+    indicators on that copy, and explicitly return the ``dropna`` result to
+    guarantee a fully dense feature frame.
+    """
+
+    feats = df.copy()
+    close = feats['Close']
+    open_ = feats['Open']
+    high = feats['High']
+    low = feats['Low']
+    vol = feats.get('Volume', pd.Series(index=feats.index, dtype=float)).fillna(0)
 
     # Technicals
-    df['ema20'] = ema(close, 20)
-    df['ema50'] = ema(close, 50)
-    df['rsi14'] = rsi(close, 14)
+    feats['ema20'] = ema(close, 20)
+    feats['ema50'] = ema(close, 50)
+    feats['rsi14'] = rsi(close, 14)
     macd_line, macd_signal, macd_hist = macd(close, 12, 26, 9)
 
     # Returns & change in return
-    df['ret'] = close.pct_change()
-    df['DRet'] = df['ret'].diff()
+    feats['ret'] = close.pct_change()
+    feats['DRet'] = feats['ret'].diff()
 
     # Assemble features
     #feats = pd.DataFrame({
@@ -53,8 +68,6 @@ def build_feature_frame(df: pd.DataFrame) -> pd.DataFrame:
     #    'DRet': dret
    # }, index=df.index)
 
-    feats = df.copy()
-    # Ensure we do not keep the initial NaN rows introduced by technical indicators.
     feats = feats.dropna()
     return feats
 
