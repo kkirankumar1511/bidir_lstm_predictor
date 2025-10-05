@@ -12,6 +12,14 @@ def prepare_data(ticker: str, interval: str, lookback: int, history_days: int, h
     raw = download_ohlc(ticker, interval, history_days)
     feats = build_feature_frame(raw)
     X, y, idx = make_supervised(feats, lookback, horizon)
+
+    if X.size == 0 or y.size == 0:
+        raise ValueError(
+            "The generated supervised dataset is empty. "
+            "Check that the downloaded price history spans enough data points "
+            "for the configured lookback and prediction horizon."
+        )
+
     return raw, feats, X, y, idx
 
 def train_pipeline(ticker: str, cfg, artifacts_dir: str):
