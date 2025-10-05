@@ -54,7 +54,8 @@ def build_feature_frame(df: pd.DataFrame) -> pd.DataFrame:
    # }, index=df.index)
 
     feats = df.copy()
-    feats.dropna()
+    # Ensure we do not keep the initial NaN rows introduced by technical indicators.
+    feats = feats.dropna()
     return feats
 
 def make_supervised(feats: pd.DataFrame, lookback: int, horizon: int):
